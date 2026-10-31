@@ -1,0 +1,103 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proximal Tubule – Solute Handling</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#fff;--fg:#111;--bar:#f1f1f1;--bd:#ccc}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1b;--fg:#eee;--bar:#2a2a2a;--bd:#555}}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Helvetica,Arial,sans-serif}
+#w{max-width:900px;margin:0 auto;padding:8px}
+svg{width:100%;height:auto;display:block;background:#fff;border-radius:6px}
+text{font-family:Helvetica,Arial,sans-serif;fill:#222}
+#bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bar);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px}
+.sb{font:inherit;padding:6px 12px;border:2px solid var(--bd);border-radius:20px;background:var(--bg);color:var(--fg);cursor:pointer;display:flex;gap:6px;align-items:center}
+.sb i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.sb.on{color:#fff}
+#row2{flex-basis:100%;display:flex;gap:10px;align-items:center}#row2 input{flex:1;accent-color:#6741d9}
+#desc{margin-top:8px;font-size:16px;line-height:1.5;padding:10px 12px;border-radius:8px;background:var(--bar);border:1px solid var(--bd)}
+button.m{font:inherit;padding:6px 12px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer}
+</style></head><body><div id="w">
+<div id="bar"><span id="chips" style="display:flex;flex-wrap:wrap;gap:8px"></span>
+<span id="row2"><b>Position along tubule</b><input id="pos" type="range" min="0" max="100" step="0.1" value="35"><b id="pv" style="min-width:48px">35%</b><button class="m" id="au">▶ Follow flow</button></span></div>
+<svg id="s" viewBox="0 0 900 960"></svg>
+<div id="desc"></div></div>
+<script>
+const NS='http://www.w3.org/2000/svg',$=i=>document.getElementById(i),S=$('s');
+const mk=(p,t,a={},h)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(h!=null)e.innerHTML=h;p.appendChild(e);return e};
+function mono(pts){const n=pts.length,x=pts.map(p=>p[0]),y=pts.map(p=>p[1]),d=[],m=[];for(let i=0;i<n-1;i++)d.push((y[i+1]-y[i])/(x[i+1]-x[i]));
+ m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
+ for(let i=0;i<n-1;i++){if(d[i]==0){m[i]=m[i+1]=0}else{const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}}
+ return v=>{if(v<=x[0])return y[0];if(v>=x[n-1])return y[n-1];let i=0;while(v>x[i+1])i++;const h=x[i+1]-x[i],t=(v-x[i])/h,t2=t*t,t3=t2*t;return(2*t3-3*t2+1)*y[i]+(t3-2*t2+t)*h*m[i]+(-2*t3+3*t2)*y[i+1]+(t3-t2)*h*m[i+1]}}
+const SOL=[
+{n:'PAH',c:'#e8590c',e:60,p:[[0,1],[10,1.42],[20,1.9],[30,2.4],[40,2.95],[50,3.5],[60,4.0]],lx:'PAH',d:'PAH is filtered AND secreted by organic-anion transporters in the proximal tubule: about 20% of the PAH that is excreted is filtered and about 80% is secreted. Its TF/P rises faster than inulin’s (more PAH is added to the lumen as it flows), so it is almost completely cleared from renal plasma in one pass.'},
+{n:'Inulin',c:'#1971c2',e:60,p:[[0,1],[10,1.33],[20,1.7],[30,2.06],[40,2.45],[50,2.9],[60,3.3]],lx:'Inulin',d:'Inulin is freely filtered and neither reabsorbed nor secreted, so the amount of inulin in the lumen stays constant. TF/P rises only because water is reabsorbed: at 60% of the tubule TF/P = 3.3, i.e. about 70% of the filtered water has been reabsorbed.'},
+{n:'Urea',c:'#2f9e44',e:60,p:[[0,1],[10,1.25],[20,1.38],[30,1.46],[40,1.5],[50,1.55],[60,1.6]],lx:'Urea',d:'Urea is reabsorbed passively, following water and Na⁺. Its TF/P rises less than inulin’s, so roughly half of the filtered urea has left the lumen by 60% of the tubule.'},
+{n:'Cl⁻',c:'#0c8599',e:60,p:[[0,1],[10,1.26],[20,1.38],[30,1.43],[40,1.43],[50,1.42],[60,1.41]],lx:'Cl⁻',d:'Early in the proximal tubule Cl⁻ is reabsorbed less than Na⁺ (HCO₃⁻ is reabsorbed with Na⁺ instead), so its TF/P climbs above 1. Later, Cl⁻ is reabsorbed passively and by exchangers, and TF/P levels off near 1.4.'},
+{n:'Osmolality, Na⁺, K⁺',c:'#6741d9',e:60,p:[[0,1],[30,1],[60,1]],lx:'Osmolality, Na⁺, K⁺',d:'Na⁺, K⁺ and water are reabsorbed in proportion, so the tubular fluid stays isosmotic with plasma and TF/P stays at 1.0. Because water is lost with them, the amount falls: about 67% of the filtered Na⁺ and K⁺ is reabsorbed in the proximal tubule, leaving about 33% at its end.'},
+{n:'HCO₃⁻',c:'#f08c00',e:60,p:[[0,1],[10,.82],[20,.7],[30,.6],[40,.54],[50,.48],[60,.44]],lx:'HCO₃⁻',d:'HCO₃⁻ is reabsorbed mainly in the early proximal tubule: H⁺ secreted by Na⁺/H⁺ exchange combines with HCO₃⁻, carbonic anhydrase converts it to CO₂ and water, and the CO₂ re-enters the cell. TF/P falls to about 0.44.'},
+{n:'Amino acids',c:'#9c36b5',e:60,p:[[0,1],[10,.68],[20,.46],[30,.31],[40,.23],[50,.19],[60,.17]],lx:'Amino acids',d:'Amino acids are reabsorbed by Na⁺-coupled secondary active transport, mostly in the early proximal tubule. TF/P falls steeply to about 0.17.'},
+{n:'Glucose',c:'#e03131',e:58,p:[[0,1],[10,.62],[20,.36],[30,.2],[40,.12],[50,.085],[58,.07]],lx:'Glucose',d:'Glucose is reabsorbed almost completely in the early proximal tubule by Na⁺-glucose co-transporters (SGLT2, then SGLT1). Below the transport maximum (Tm) essentially none appears in the urine.'}];
+const INU=mono(SOL[1].p);SOL.forEach(s=>{s.f=mono(s.p);s.A=x=>s.f(x)/INU(x);s.dA=x=>(s.A(Math.min(100,x+.5))-s.A(Math.max(0,x-.5)))/(x<.5||x>99.5?.5:1)});
+const na=SOL[4];na.A=x=>{const q=x<=60?.8*(1-1/INU(x))/(1-1/3.3):.8+.2*(Math.min(100,x)-60)/40;return 1-.67*q};na.dA=x=>na.A(Math.min(100,x+.5))-na.A(Math.max(0,x-.5));
+// geometry
+const X=p=>110+7.2*p,PY=r=>830-r*125,TY=115,CY=205;
+// tubule drawing
+mk(S,'text',{x:110,y:34,style:'font-size:22px;font-weight:700'},'Proximal tubule');mk(S,'text',{x:830,y:34,'text-anchor':'end',style:'font-size:16px;fill:#777'},'% of proximal tubule length →');
+mk(S,'rect',{x:110,y:88,width:720,height:54,fill:'#f7e8ad'});
+for(let k=0;k<40;k++)for(const y of[78,152])mk(S,'ellipse',{cx:119+k*18,cy:y,rx:9,ry:7,fill:'#e6b8c4',stroke:'#8a4a5a'});
+mk(S,'path',{d:'M110 70H830M110 160H830',stroke:'#8a4a5a','stroke-width':2});
+mk(S,'rect',{x:110,y:190,width:720,height:30,rx:15,fill:'#f4a3a8',stroke:'#b04a5a','stroke-width':2});
+mk(S,'text',{x:112,y:250,style:'font-size:16px'},'Peritubular capillary');mk(S,'text',{x:116,y:58,style:'font-size:14px;fill:#666'},'Tubular lumen (flow →)');
+mk(S,'rect',{x:X(60),y:60,width:830-X(60),height:170,fill:'#fff',opacity:.5});mk(S,'text',{x:X(80),y:250,'text-anchor':'middle',style:'font-size:15px;fill:#777'},'(no data beyond 60%)');
+[0,20,40,60,80,100].forEach(p=>{mk(S,'path',{d:`M${X(p)} 224v8`,stroke:'#555'});mk(S,'text',{x:X(p),y:274,'text-anchor':'middle',style:'font-size:14px;fill:#555'},p+'%')});
+const arG=mk(S,'g');const beadG=mk(S,'g');
+// graph
+const gd=mk(S,'defs',{},'<linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f1f8"/><stop offset="1" stop-color="#a692b2"/></linearGradient>');
+mk(S,'rect',{x:110,y:PY(4),width:720,height:500,fill:'url(#gg)'});
+mk(S,'path',{d:`M110 ${PY(4)}V830H830`,fill:'none',stroke:'#222','stroke-width':3});
+for(let v=0;v<=4;v+=.5){const y=PY(v);mk(S,'path',{d:`M${v%1?102:96} ${y}H110`,stroke:'#222','stroke-width':2});if(!(v%1))mk(S,'text',{x:90,y:y+7,'text-anchor':'end',style:'font-size:20px'},v.toFixed(1).replace('.0',v==0?'':'.0'))}
+[0,20,40,60,80,100].forEach(p=>{mk(S,'path',{d:`M${X(p)} 830v9`,stroke:'#222','stroke-width':2});mk(S,'text',{x:X(p),y:866,'text-anchor':'middle',style:'font-size:20px'},p)});
+mk(S,'text',{x:470,y:904,'text-anchor':'middle',style:'font-size:22px'},'% Proximal tubule length');
+mk(S,'text',{transform:'translate(34 575) rotate(-90)','text-anchor':'middle',style:'font-size:20px'},'[Tubular fluid]/[Plasma ultrafiltrate]');
+const curves=SOL.map((s,i)=>{let d='';for(let p=0;p<=s.e;p+=1)d+=(p?'L':'M')+X(p)+' '+PY(s.f(p));const path=mk(S,'path',{d,fill:'none',stroke:'#4b2a66','stroke-width':3,'stroke-linecap':'round',opacity:.7});
+ const ly=PY(s.f(s.e))+(s.n=='Glucose'?0:s.n=='Amino acids'?-14:s.n=='Urea'?-2:s.n=='Cl⁻'?10:0)+5;
+ const t=mk(S,'text',{x:X(s.e)+10,y:ly,style:'font-size:18px;cursor:pointer'},s.lx);t.onclick=()=>pick(i);return{path,t}});
+const mline=mk(S,'path',{stroke:'#333','stroke-width':2,'stroke-dasharray':'5 4',fill:'none'});const mdot=mk(S,'circle',{r:8,stroke:'#fff','stroke-width':3});
+mk(S,'rect',{x:X(70),y:PY(3.8),width:200,height:150,rx:10,fill:'#fff',opacity:.88,stroke:'#999'});
+const rt=[0,1,2,3,4].map(k=>mk(S,'text',{x:X(70)+12,y:PY(3.8)+30+k*26,style:k==0?'font-size:20px;font-weight:700':'font-size:16px'}));
+// chips
+let sel=7,pos=35,auto=false,beads=[],acc=0,accB=0,accS=new Array(100).fill(0),HZ=[],SEC=[];
+SOL.forEach((s,i)=>{const b=document.createElement('button');b.className='sb';b.innerHTML=`<i style="background:${s.c}"></i>${s.n}`;b.onclick=()=>pick(i);s.b=b;$('chips').appendChild(b)});
+let SECT=1;function sampleSec(){let r=Math.random()*SECT,i=0;while(i<199&&r>SEC[i]){r-=SEC[i];i++}return X(i/2)}
+function pick(i){sel=i;const s=SOL[i];beads.forEach(b=>b.e.remove());beads=[];accS.fill(0);
+ HZ=[];SEC=[];for(let k=0;k<200;k++){const p=k/2,A=s.A(p),d=s.dA(p);HZ.push(d<0?-d/Math.max(A,.03):0);SEC.push(d>0?d:0)}
+ SOL.forEach((q,j)=>{q.b.className='sb'+(j==i?' on':'');q.b.style.background=j==i?q.c:'';q.b.style.borderColor=j==i?q.c:'';curves[j].path.setAttribute('stroke',j==i?q.c:'#4b2a66');curves[j].path.setAttribute('stroke-width',j==i?6:3);curves[j].path.setAttribute('opacity',j==i?1:.55);curves[j].t.style.fontWeight=j==i?'700':'400'});
+ $('desc').innerHTML='<b style="color:'+s.c+'">'+s.n+':</b> '+s.d;mdot.setAttribute('fill',s.c);SECT=SEC.reduce((a,b)=>a+b,0)||1;
+ arG.innerHTML='';let mx=0;for(let p=1;p<=58;p++)mx=Math.max(mx,Math.abs(s.dA(p)));
+ if(mx>.002){let sec=false,rea=false;for(let p=15;p<=75;p+=30){const d=s.dA(p);if(Math.abs(d)<.15*mx)continue;const m=Math.abs(d)/mx,x=X(p),w=2+3.5*m;
+  if(d>0){sec=true;mk(arG,'path',{d:`M${x} 188V168`,stroke:s.c,'stroke-width':w,fill:'none'});mk(arG,'path',{d:`M${x-8} 172L${x} 160L${x+8} 172Z`,fill:s.c})}
+  else{rea=true;mk(arG,'path',{d:`M${x} 162V182`,stroke:s.c,'stroke-width':w,fill:'none'});mk(arG,'path',{d:`M${x-8} 178L${x} 190L${x+8} 178Z`,fill:s.c})}}
+  mk(arG,'text',{x:830,y:178,'text-anchor':'end',style:`font-size:17px;font-weight:700;fill:${s.c}`},sec&&!rea?'secretion ↑ (capillary → lumen)':rea&&!sec?'reabsorption ↓ (lumen → capillary)':'secretion ↑ and reabsorption ↓')}}
+$('pos').oninput=e=>{pos=+e.target.value;auto=false;$('au').textContent='▶ Follow flow'};
+$('au').onclick=()=>{auto=!auto;$('au').textContent=auto?'■ Stop':'▶ Follow flow'};
+pick(7);
+const V=70,R=5;let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;const s=SOL[sel];
+ if(auto){pos=(pos+dt*10)%100;$('pos').value=pos}
+ const pe=Math.min(pos,s.e),r=s.f(pe),ri=INU(pe),A=s.A(sel==4?pos:pe);$('pv').textContent=pos.toFixed(0)+'%';
+ mline.setAttribute('d',`M${X(pos)} 60V830`);mdot.setAttribute('cx',X(pe));mdot.setAttribute('cy',PY(r));
+ rt[0].textContent=s.n;rt[0].style.fill=s.c;rt[1].textContent='TF/P: '+r.toFixed(2)+(pos>s.e?'  (data end)':'');rt[2].textContent='Inulin TF/P: '+ri.toFixed(2);
+ rt[3].textContent='Load remaining: '+(A*100).toFixed(0)+'%';rt[4].textContent=A<.995?'Reabsorbed: '+((1-A)*100).toFixed(0)+'%':A>1.005?'Net secreted: +'+((A-1)*100).toFixed(0)+'%':'No net transport';
+ if(sel==0){rt[3].textContent='Filtered: 20%';rt[4].textContent='Secreted: 80%'}
+ acc+=dt*(sel==0?1:R);while(acc>=1){acc--;beads.push({e:mk(beadG,'circle',{r:5.5,fill:s.c,stroke:'#222','stroke-width':1}),x:X(0),y:TY+(Math.random()-.5)*24,st:'l',j:(Math.random()-.5)*24})}
+ if(SEC.some(v=>v>0)){accB+=dt*4.44;while(accB>=1){accB--;const e=mk(beadG,'circle',{r:5,fill:s.c,stroke:'#fff','stroke-width':1.5,opacity:.85});beads.push({e,x:X(0),y:CY+(Math.random()-.5)*8,st:'bb',j:(Math.random()-.5)*24,tx:Math.random()<.9?sampleSec():null})}}
+ for(let b=0;b<100;b++){const rate=0;if(rate>0){accS[b]+=rate*dt;while(accS[b]>=1){accS[b]--;beads.push({e:mk(beadG,'circle',{r:5.5,fill:s.c,stroke:'#222','stroke-width':1}),x:X(b+Math.random())-25,y:CY,st:'sb',pre:.6,j:(Math.random()-.5)*24});beads[beads.length-1].e.setAttribute('r',7);beads[beads.length-1].e.setAttribute('stroke','#fff');beads[beads.length-1].e.setAttribute('stroke-width',3)}}}
+ for(const q of beads){if(q.st=='l'){q.x+=V*dt;const p=(q.x-110)/7.2,hz=HZ[Math.min(199,Math.max(0,Math.round(p*2)))]*(V*dt/7.2);if(Math.random()<hz){q.st='r';q.life=0}if(q.x>835)q.dead=true}
+  else if(q.st=='r'){q.y+=55*dt;if(q.y>=CY){q.y=CY;q.st='c';q.life=0}}
+  else if(q.st=='c'){q.x+=35*dt;q.life+=dt;q.e.setAttribute('opacity',Math.max(0,1-q.life/1.6));if(q.life>1.6)q.dead=true}
+  else if(q.st=='sb'){q.x+=40*dt;q.pre-=dt;if(q.pre<=0)q.st='s'}
+  else if(q.st=='bb'){q.x+=40*dt;if(q.tx!=null&&q.x>=q.tx){q.st='s';q.e.setAttribute('r',7);q.e.setAttribute('stroke','#fff');q.e.setAttribute('stroke-width',3);q.e.setAttribute('opacity',1)}else if(q.x>835)q.dead=true}
+  else if(q.st=='s'){q.y-=45*dt;if(q.y<=TY+q.j/2){q.st='l';q.e.setAttribute('r',5.5);q.e.setAttribute('stroke','#222');q.e.setAttribute('stroke-width',1)}}
+  q.e.setAttribute('cx',q.x);q.e.setAttribute('cy',q.y)}
+ beads=beads.filter(q=>{if(q.dead)q.e.remove();return !q.dead});
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></body></html>
